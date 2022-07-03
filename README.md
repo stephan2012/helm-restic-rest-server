@@ -30,6 +30,8 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "900"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "900"
   hosts:
     - host: restic.domain.com
       paths:
@@ -43,7 +45,9 @@ ingress:
 
 ### Service
 
-The Helm chart allows exposing the REST server’s service for direct access.
+The Helm chart allows exposing the REST server’s service for direct
+access. Bypassing an Ingress Controller may result in slightly better
+performance (latency).
 
 Beware, however, that the REST server is currently [not able to reload](https://github.com/restic/rest-server/issues/94)
 a renewed TLS server certificate online.

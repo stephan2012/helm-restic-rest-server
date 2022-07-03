@@ -64,6 +64,12 @@ spec:
 {{- if .Values.restic.restServer.repos.private }}
                 --private-repos
 {{- end }}
+{{- if .Values.restic.restServer.prometheus.enabled }}
+                --prometheus
+{{- if .Values.restic.restServer.prometheus.authenticated }}
+                --prometheus-no-auth
+{{- end }}
+{{- end }}
 {{- if .Values.restic.restServer.extraArgs }}
                 {{ .Values.restic.restServer.extraArgs }}
 {{- end }}
