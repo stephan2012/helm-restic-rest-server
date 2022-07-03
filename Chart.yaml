@@ -4,3 +4,9 @@ description: Restic REST Server
 type: application
 version: 0.1.2
 appVersion: "0.11.0"
+keywords:
+  - restic
+  - rest-server
+home: https://github.com/stephan2012/helm-restic-rest-server
+maintainers:
+  - name: Stephan Austermühle
