@@ -1,5 +1,7 @@
 # Helm Chart for the Restic REST Server
 
+**NOTE:** This is work in progress. While the chart works, this README needs some additions.
+
 This Helm chart deploys the [Restic REST Server](https://github.com/restic/rest-server) to a Kubernetes
 cluster. It currently requires building the development version
 because the highly useful feature of [reading the user list from an arbitrary location](https://github.com/restic/rest-server/pull/188)
