@@ -1,0 +1,19 @@
+{{- if and .Values.restic.restServer.repos.persistence.enabled (not .Values.restic.restServer.repos.persistence.existingClaim) }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "restic-rest-server.claimName" . }}
+  labels: {{ include "restic-rest-server.labels" . | nindent 4 }}
+  {{- with .Values.restic.restServer.repos.persistence.annotations }}
+  annotations: {{ toYaml | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes: {{ toYaml .Values.restic.restServer.repos.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.restic.restServer.repos.persistence.size }}
+  {{- if .Values.restic.restServer.repos.persistence.storageClass }}
+  storageClassName: {{ .Values.restic.restServer.repos.persistence.storageClass }}
+  {{- end }}
+  volumeMode: Filesystem
+{{- end }}

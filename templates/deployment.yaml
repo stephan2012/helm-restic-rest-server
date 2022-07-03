@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "restic-rest-server.fullname" . }}
+  labels:
+    {{- include "restic-rest-server.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "restic-rest-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "restic-rest-server.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "restic-rest-server.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+{{- if not .Values.restic.restServer.auth.enabled }}
+            - name: DISABLE_AUTHENTICATION
+              value: "1"
+{{- else }}
+            - name: PASSWORD_FILE
+              value: /run/secrets/users/{{ .Values.restic.restServer.auth.htpasswdKey }}
+{{- end }}
+            - name: OPTIONS
+              value:
+                --listen=0.0.0.0:8000
+{{- if .Values.restic.restServer.debug.enabled }}
+                --debug
+{{- end }}
+{{- if .Values.restic.restServer.tls.enabled }}
+                --tls
+                --tls-cert=/run/secrets/tls/{{ .Values.restic.restServer.tls.certKey }}
+                --tls-key=/run/secrets/tls/{{ .Values.restic.restServer.tls.privateKeyKey }}
+{{- end }}
+{{- if .Values.restic.restServer.repos.appendOnly }}
+                --append-only
+{{- end }}
+{{- if and .Values.restic.restServer.repos.persistence.enabled .Values.restic.restServer.repos.path }}
+                --path=/data
+{{- end }}
+{{- if .Values.restic.restServer.repos.maxSize }}
+                --max-size={{ int .Values.restic.restServer.repos.maxSize }}
+{{- end }}
+{{- if .Values.restic.restServer.repos.private }}
+                --private-repos
+{{- end }}
+{{- if .Values.restic.restServer.extraArgs }}
+                {{ .Values.restic.restServer.extraArgs }}
+{{- end }}
+          volumeMounts:
+{{- if .Values.restic.restServer.auth.enabled }}
+            - name: htpasswd
+              readOnly: true
+              mountPath: /run/secrets/users
+{{- end }}
+{{- if .Values.restic.restServer.tls.enabled }}
+            - name: tls-cert
+              readOnly: true
+              mountPath: /run/secrets/tls
+{{- end }}
+{{- if .Values.restic.restServer.repos.persistence.enabled }}
+            - name: data
+              mountPath: /data
+              readOnly: false
+{{- end }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+{{- if .Values.restic.restServer.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: {{ .Values.restic.restServer.tls.enabled | ternary "HTTPS" "HTTP" }}
+            initialDelaySeconds: {{ .Values.restic.restServer.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.restic.restServer.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.restic.restServer.livenessProbe.failureThreshold }}
+{{- end }}
+{{- if .Values.restic.restServer.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: {{ .Values.restic.restServer.tls.enabled | ternary "HTTPS" "HTTP" }}
+            initialDelaySeconds: {{ .Values.restic.restServer.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.restic.restServer.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.restic.restServer.readinessProbe.failureThreshold }}
+{{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+{{- if .Values.restic.restServer.auth.enabled }}
+        - name: htpasswd
+          secret:
+            secretName: {{ include "restic-rest-server.usersSecret" . }}
+{{- end }}
+{{- if .Values.restic.restServer.tls.enabled }}
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.restic.restServer.tls.secretName }}
+{{- end }}
+{{- if .Values.restic.restServer.repos.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "restic-rest-server.claimName" . }}
+{{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- if .Values.topologySpreadConstraints.enabled }}
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: {{ include "restic-rest-server.name" . }}
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        maxSkew: {{ .Values.topologySpreadConstraints.maxSkew }}
+        topologyKey: {{ .Values.topologySpreadConstraints.topologyKey }}
+        whenUnsatisfiable: {{ .Values.topologySpreadConstraints.whenUnsatisfiable }}
+{{- end }}
+{{- end }}
