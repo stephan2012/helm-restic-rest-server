@@ -150,7 +150,7 @@ restic:
 
     prometheus:
       # Enable Prometheus metrics
-      enabled: false
+      enabled: true
 
       # Disable auth for Prometheus /metrics endpoint
       authenticated: false
@@ -159,7 +159,15 @@ restic:
     extraArgs: ""
 
     livenessProbe:
-      enabled: false
+      enabled: true
+      path: /metrics
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      failureThreshold: 1
 
     readinessProbe:
-      enabled: false
+      enabled: true
+      path: /metrics
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      failureThreshold: 1
